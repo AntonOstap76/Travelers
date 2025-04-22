@@ -21,7 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DataConfig\" />
     <Folder Include="Mappers\" />
     <Folder Include="Migrations\" />
   </ItemGroup>

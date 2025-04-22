@@ -123,9 +123,5 @@ public class AuthController(IAuthService authService, UserManager<User> userMana
     //logout just to delete token in frontend
 
 
-    [HttpGet("protected")]
-    [Authorize]
-    public string GetMessage()=>"This is wild";
-
 
 }

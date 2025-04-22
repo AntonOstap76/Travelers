@@ -33,8 +33,9 @@ builder.Services.AddDefaultIdentity<User>(options =>
 }).AddEntityFrameworkStores<StoreContext>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPostRepository, PostRepository>();
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi("v1", options=>{options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();});
 
 var app = builder.Build();
 
@@ -51,8 +52,6 @@ if (app.Environment.IsDevelopment())
         options.Theme = ScalarTheme.Mars;
         options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
         options.ShowSidebar = true;
-
-    
     });
 }
 

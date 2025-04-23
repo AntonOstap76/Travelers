@@ -39,7 +39,7 @@ public class PostController:BaseApiController
             Longitude = p.Location.Longitude
         },
         Like = p.Like,
-        Comments = p.Comments.Count
+        CommentsCount = p.Comments.Count
     }).ToList();
 
     return Ok(postDto);
@@ -51,7 +51,7 @@ public class PostController:BaseApiController
         var post = await _postRepository.GetByIdAsync(id);
         if (post==null) return NotFound();
 
-        var postDto = new PostsSend
+        var postDto = new PostDetailedSend
         {
         UserName = post.User?.UserName ?? "Uknown user",
         Title = post.Title,
@@ -63,7 +63,13 @@ public class PostController:BaseApiController
             Longitude = post.Location.Longitude
         },
         Like = post.Like,
-        Comments = post.Comments.Count
+        Comments = post.Comments.Select(c => new CommentsSend
+        {
+            Text = c.Text,
+            Like = c.Like,
+            UserName=c.User?.UserName ?? "Unknown User"
+            
+        }).ToList()
         };
 
         return Ok(postDto);
@@ -77,11 +83,6 @@ public class PostController:BaseApiController
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userId == null)
             return Unauthorized();
-
-        var user = await _userManager.FindByIdAsync(userId);
-
-        if (user == null)
-            return NotFound("User not found");
 
         var post = new Post
         {
@@ -119,15 +120,10 @@ public class PostController:BaseApiController
         if (userId == null)
             return Unauthorized();
 
-        var user = await _userManager.FindByIdAsync(userId);
-
-        if (user == null)
-            return NotFound("User not found");
-
         var post = await _postRepository.GetByIdAsync(id);
         if(post == null) return NotFound();
 
-        if(user != post.User){
+        if(userId != post.UserId){
             return BadRequest("You dont create this post");
         }
 
@@ -139,5 +135,62 @@ public class PostController:BaseApiController
         }
         return BadRequest("Problem deleting the post ");
     }
+
+    [Authorize]
+    [HttpPost("{postId:int}/comment")]
+    public async Task<IActionResult> AddComment(int postId, [FromBody] CommentsDto input)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+            return Unauthorized();
+
+        var comment = new Comment
+        {
+            Text = input.Text,
+            UserId = userId,
+            PostId = postId,
+            Like = 0
+        };
+
+        var post = await _postRepository.GetByIdAsync(postId);
+        if(post == null) return NotFound("Post Not found");
+
+        post.Comments.Add(comment);
+
+         if (!await _postRepository.SaveChangesAsync())
+        {
+            return BadRequest("Problem saving comment");
+        }
+
+        return Ok("Comment added successfully");
+    }
+
+    [Authorize]
+    [HttpDelete("{postId:int}/comment/{commentId:int}")]
+     public async Task<IActionResult>DeleteComment(int postId, int commentId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
+            return Unauthorized();
+
+        var post = await _postRepository.GetByIdAsync(postId);
+        if(post == null) return NotFound();
+
+        var comment =  post.Comments.FirstOrDefault(c=>c.Id==commentId);
+        if(comment == null) return NotFound();
+
+        if (comment.UserId != userId && post.UserId != userId)
+        return Forbid("You are not authorized to delete this comment");
+
+        post.Comments.Remove(comment);
+
+        if(await _postRepository.SaveChangesAsync())
+        {
+            return NoContent();
+        }
+        return BadRequest("Problem deleting the comment ");
+    }
+
+
 
 }

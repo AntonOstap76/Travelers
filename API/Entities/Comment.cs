@@ -9,4 +9,5 @@ public class Comment:BaseEntity
     public string UserId { get; set; }
     public int PostId { get; set; }
     public required string Text { get; set; }
+    public int Like { get; set; }
 }

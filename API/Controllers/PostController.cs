@@ -1,8 +1,11 @@
 using System;
 using System.Security.Claims;
 using API.Entities;
+using API.Extensions;
 using API.Interfaces;
 using API.Models;
+using API.RequestHelpers;
+using API.Specifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -12,20 +15,23 @@ namespace API.Controllers;
 public class PostController:BaseApiController
 {
 
-    private readonly IPostRepository _postRepository;
-    private readonly UserManager<User> _userManager;
+    private readonly IGenericRepository<Post> _repo;
 
-     public PostController(IPostRepository postRepository, UserManager<User> userManager)
+     public PostController(IGenericRepository<Post> repo, UserManager<User> userManager)
     {
-        _postRepository = postRepository;
-        _userManager = userManager;
+        _repo = repo;
     }
 
     
     [HttpGet("posts")]
-    public async Task<ActionResult<IReadOnlyList<Post>>> GetPosts()
-    {
-        var posts = await _postRepository.GetPostsAsync();
+    public async Task<ActionResult<IReadOnlyList<Post>>> GetPosts([FromQuery]PostSpecParams specParams)
+    {  
+         //return posts include user
+        var spec = new PostSpecification(specParams);
+        var posts = await _repo.ListAsync(spec);
+
+        var count = await _repo.CountAsync(spec);
+        
 
         var postDto = posts.Select(p=> new PostsSend
         {
@@ -42,13 +48,18 @@ public class PostController:BaseApiController
         CommentsCount = p.Comments.Count
     }).ToList();
 
-    return Ok(postDto);
+    var pagination = new Pagination<PostsSend>(specParams.PageIndex, specParams.PageSize, count, postDto);
+
+    return Ok(pagination);
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Post>>GetPost(int id)
     {
-        var post = await _postRepository.GetByIdAsync(id);
+        //return post include user+comment include user
+        var spec = new PostIdWithSpecification(id);
+        var post = await _repo.GetEntityWithSpec(spec);
+        
         if (post==null) return NotFound();
 
         var postDto = new PostDetailedSend
@@ -99,13 +110,16 @@ public class PostController:BaseApiController
                 Country = postinput.Location.Country
             },
             Like = 0,
-            Comments = []
+            Comments = [],
+
            
         };
+        post.AddEntityCreatedInfo();
 
-        _postRepository.AddPost(post);
+        _repo.Add(post);
+        
 
-        if(!await _postRepository.SaveChangesAsync())
+        if(!await _repo.SaveAllAsync())
         {
            return BadRequest("Problem crewating a post");
         }
@@ -120,77 +134,25 @@ public class PostController:BaseApiController
         if (userId == null)
             return Unauthorized();
 
-        var post = await _postRepository.GetByIdAsync(id);
-        if(post == null) return NotFound();
+        var post = await _repo.GetByIdAsync(id);
+        if(post==null) return NotFound();
 
         if(userId != post.UserId){
             return BadRequest("You dont create this post");
         }
 
-        _postRepository.DeletePost(post);
+        _repo.Remove(post);
 
-        if(await _postRepository.SaveChangesAsync())
+        if(await _repo.SaveAllAsync())
         {
             return NoContent();
         }
         return BadRequest("Problem deleting the post ");
     }
 
-    [Authorize]
-    [HttpPost("{postId:int}/comment")]
-    public async Task<IActionResult> AddComment(int postId, [FromBody] CommentsDto input)
+// when implementing update
+    private bool PostExists(int id)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userId == null)
-            return Unauthorized();
-
-        var comment = new Comment
-        {
-            Text = input.Text,
-            UserId = userId,
-            PostId = postId,
-            Like = 0
-        };
-
-        var post = await _postRepository.GetByIdAsync(postId);
-        if(post == null) return NotFound("Post Not found");
-
-        post.Comments.Add(comment);
-
-         if (!await _postRepository.SaveChangesAsync())
-        {
-            return BadRequest("Problem saving comment");
-        }
-
-        return Ok("Comment added successfully");
+        return _repo.Exists(id);
     }
-
-    [Authorize]
-    [HttpDelete("{postId:int}/comment/{commentId:int}")]
-     public async Task<IActionResult>DeleteComment(int postId, int commentId)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userId == null)
-            return Unauthorized();
-
-        var post = await _postRepository.GetByIdAsync(postId);
-        if(post == null) return NotFound();
-
-        var comment =  post.Comments.FirstOrDefault(c=>c.Id==commentId);
-        if(comment == null) return NotFound();
-
-        if (comment.UserId != userId && post.UserId != userId)
-        return Forbid("You are not authorized to delete this comment");
-
-        post.Comments.Remove(comment);
-
-        if(await _postRepository.SaveChangesAsync())
-        {
-            return NoContent();
-        }
-        return BadRequest("Problem deleting the comment ");
-    }
-
-
-
 }

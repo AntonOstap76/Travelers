@@ -34,6 +34,7 @@ builder.Services.AddDefaultIdentity<User>(options =>
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 builder.Services.AddOpenApi("v1", options=>{options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();});
 

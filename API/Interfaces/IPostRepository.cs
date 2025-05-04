@@ -12,7 +12,7 @@ public interface IPostRepository
     Task<bool> SaveChangesAsync();
 
     //TODO: add page spec
-    Task<IReadOnlyList<Post>>GetPostsAsync();
+    Task<IReadOnlyList<Post>>GetPostsAsync(string?sort);
 
 
 }

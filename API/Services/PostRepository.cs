@@ -29,17 +29,25 @@ public class PostRepository : IPostRepository
         return await _context.Posts.Include(p => p.User).Include(p => p.Comments).ThenInclude(c=>c.User).FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<IReadOnlyList<Post>> GetPostsAsync()
+    public async Task<IReadOnlyList<Post>> GetPostsAsync(string? sort )
     {
-        return await _context.Posts.Include(p=>p.User).Include(p => p.Comments).OrderByDescending(p=>p.Created).ToListAsync();
+        var query = _context.Posts.Include(p=>p.User).Include(p => p.Comments).AsQueryable();
+        query=sort switch
+        {
+            "fromNewest"=>query.OrderBy(x=>x.Updated),
+            "fromLatest"=>query.OrderByDescending(x=>x.Updated),
+            "leastLikes"=>query.OrderBy(x=>x.Like),
+            "mostLikes"=>query.OrderByDescending(x=>x.Like),
+            _=>query.OrderBy(x=>x.Title)
+        };
+        return await query.ToListAsync();
     }
+
+   
     public async Task<bool> SaveChangesAsync()
     {
         return await _context.SaveChangesAsync()>0;
     }
 
-    public void UpdatePost(Post post)
-    {
-        _context.Entry(post).State=EntityState.Modified;
-    }
+    
 }

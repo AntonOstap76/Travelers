@@ -6,7 +6,9 @@ namespace API.Specifications;
 
 public class PostSpecification:BaseSpecification<Post>
 {
-    public PostSpecification(PostSpecParams specParams)
+    public PostSpecification(PostSpecParams specParams) : base(x=>
+           string.IsNullOrEmpty(specParams.Search) || x.User!.UserName!.ToLower().Contains(specParams.Search)
+        )
     {
         ApplyPaging(specParams.PageSize*(specParams.PageIndex-1), specParams.PageSize);
         AddInclude(p => p.User);

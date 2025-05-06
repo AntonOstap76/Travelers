@@ -355,6 +355,11 @@ OpenCover/
 # Azure Stream Analytics local run output
 ASALocalRun/
 
+# mkcert certs
+*.pem
+*.key
+*.crt
+
 # MSBuild Binary and Structured Log
 *.binlog
 

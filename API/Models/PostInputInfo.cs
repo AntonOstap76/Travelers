@@ -1,14 +1,18 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using API.Entities;
 
 namespace API.Models;
 
 public class PostInputInfo
 {
-    public required string Title { get; set; }  
-    public required string  PictureUrl { get; set; }
+    [Required]
+    public  string Title { get; set; } = string.Empty; 
+    [Required]
+    public  string  PictureUrl { get; set; }=string.Empty;
     public string? Description { get; set; }
-    public required LocationInput Location { get; set; }
-   
+    
+    [Required(ErrorMessage = "Location is required!")]
+    public LocationInput Location { get; set; }=default!;
 
 }
